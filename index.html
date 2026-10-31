@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Together</title>
+<style>
+  :root {
+    --night: #1b1626;
+    --surface: #271f38;
+    --line: #3b3052;
+    --text: #f1e9f5;
+    --muted: #a99bb8;
+    --rose: #ff8fa3;
+    --rose-ink: #3a1020;
+    --ok: #7bd3a6;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--night); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  }
+  main { max-width: 1100px; margin: 0 auto; display: grid; gap: 12px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  h1 { font: 600 1.6rem/1 Georgia, "Times New Roman", serif; margin: 0 auto 0 0; }
+  .status { color: var(--muted); font-size: .9rem; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+  .dot.on { background: var(--ok); }
+  input[type=text] {
+    background: var(--surface); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px; font: inherit; width: 9.5em;
+    letter-spacing: .12em; text-transform: uppercase;
+  }
+  .primary {
+    background: var(--rose); color: var(--rose-ink); border: 1px solid var(--rose);
+    border-radius: 8px; padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  .primary:disabled { opacity: .5; cursor: not-allowed; }
+  :focus-visible { outline: 2px solid var(--rose); outline-offset: 2px; }
+
+  /* ---- Stage: the stream is always the main screen ---- */
+  .stage {
+    position: relative; background: #000; border-radius: 12px; overflow: hidden;
+    width: 100%; aspect-ratio: 16 / 9; max-height: calc(100vh - 120px);
+  }
+  .stage:fullscreen, .stage:-webkit-full-screen, .stage.maximized {
+    position: fixed; inset: 0; width: 100vw; height: 100vh; max-height: none;
+    aspect-ratio: auto; border-radius: 0; z-index: 50;
+  }
+  #main { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+  #main[hidden] { display: none; }
+  .empty {
+    position: absolute; inset: 0; display: grid; place-content: center; justify-items: center;
+    gap: 8px; padding: 24px; text-align: center; color: var(--muted); pointer-events: none;
+  }
+  .empty[hidden] { display: none; }
+  .empty strong { color: var(--text); font: 600 1.3rem/1.2 Georgia, serif; }
+  .empty p { margin: 0; max-width: 34em; }
+  .empty button { pointer-events: auto; margin-top: 8px; }
+  .chip {
+    position: absolute; top: 12px; left: 12px; max-width: 60%; padding: 6px 12px; border-radius: 999px;
+    background: rgba(0,0,0,.6); font-size: .85rem; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; transition: opacity .2s;
+  }
+  .chip[hidden] { display: none; }
+
+  /* Small camera tiles on top of the stage */
+  #tiles { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; width: 150px; }
+  #tiles video { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: #111; border: 1px solid rgba(255,255,255,.2); }
+  #tiles video.audio-only { display: none; }
+  #tiles video.mirror { transform: scaleX(-1); }
+  @media (max-width: 600px) { #tiles { width: 96px; } }
+
+  /* ---- YouTube-style control bar ---- */
+  .bar {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 36px 10px 6px;
+    background: linear-gradient(transparent, rgba(0,0,0,.8)); transition: opacity .2s;
+  }
+  .stage.idle .bar, .stage.idle .chip { opacity: 0; pointer-events: none; }
+  .stage.idle { cursor: none; }
+  .row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px; }
+  .group { display: flex; align-items: center; gap: 2px; }
+  .btn {
+    width: 42px; height: 42px; display: grid; place-items: center; padding: 0;
+    background: none; border: 0; border-radius: 50%; color: #fff; cursor: pointer;
+  }
+  .btn svg { width: 26px; height: 26px; fill: currentColor; }
+  .btn:hover:not(:disabled) { background: rgba(255,255,255,.18); }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+  .btn.active { background: var(--rose); color: var(--rose-ink); }
+  .swap .b { display: none; }
+  .swap.flip .a { display: none; }
+  .swap.flip .b { display: block; }
+  #time { font-size: .85rem; margin-left: 8px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  #seek {
+    -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 16px;
+    margin: 0 0 2px; background: transparent; cursor: pointer; --pct: 0%;
+  }
+  #seek:disabled { cursor: default; opacity: .5; }
+  #seek::-webkit-slider-runnable-track {
+    height: 4px; border-radius: 2px;
+    background: linear-gradient(to right, var(--rose) var(--pct), rgba(255,255,255,.3) var(--pct));
+  }
+  #seek::-moz-range-track { height: 4px; border-radius: 2px; background: rgba(255,255,255,.3); }
+  #seek::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--rose); }
+  #seek::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5px; border-radius: 50%; background: var(--rose); border: 0;
+  }
+  #seek::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--rose); border: 0; }
+
+  #log { color: var(--muted); font-size: .9rem; min-height: 1.4em; margin: 0; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Together</h1>
+    <span class="status"><span class="dot" id="dot"></span><span id="statusText">Not connected</span></span>
+    <input type="text" id="room" placeholder="Room code" maxlength="12" aria-label="Room code">
+    <button class="primary" id="connect">Connect</button>
+  </header>
+
+  <section class="stage idle" id="stage" aria-label="Shared screen">
+    <video id="main" playsinline></video>
+
+    <div class="empty" id="empty">
+      <strong>Nothing is playing yet</strong>
+      <p>Share your screen or stream a video from your device. Either of you can start, and both of you can pause, rewind and skip.</p>
+    </div>
+    <div class="empty" id="sharing" hidden>
+      <strong>You are sharing your screen</strong>
+      <p>Your partner sees it as the main screen.</p>
+      <button class="primary" id="stopShare">Stop sharing</button>
+    </div>
+
+    <div class="chip" id="chip" hidden></div>
+    <div id="tiles"></div>
+
+    <div class="bar" id="bar">
+      <input type="range" id="seek" min="0" max="1000" value="0" step="1" aria-label="Seek" disabled>
+      <div class="row">
+        <div class="group">
+          <button class="btn" id="back" title="Back 10 seconds (J)" aria-label="Back 10 seconds" disabled>
+            <svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/><text x="12" y="16.2" text-anchor="middle" font-size="7" font-weight="700" font-family="system-ui,sans-serif">10</text></svg>
+          </button>
+          <button class="btn swap" id="toggle" title="Play / Pause (Space)" aria-label="Play or pause" disabled>
+            <svg class="a" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <svg class="b" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+          </button>
+          <button class="btn" id="fwd" title="Forward 10 seconds (L)" aria-label="Forward 10 seconds" disabled>
+            <svg viewBox="0 0 24 24"><g transform="translate(24 0) scale(-1 1)"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></g><text x="12" y="16.2" text-anchor="middle" font-size="7" font-weight="700" font-family="system-ui,sans-serif">10</text></svg>
+          </button>
+          <button class="btn swap" id="vol" title="Mute / Unmute (M)" aria-label="Mute or unmute" disabled>
+            <svg class="a" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+            <svg class="b" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3z"/><path d="M16 9.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+          </button>
+          <span id="time"></span>
+        </div>
+        <div class="group">
+          <button class="btn" id="mic" title="Voice call" aria-label="Voice call" disabled>
+            <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+          </button>
+          <button class="btn" id="cam" title="Camera" aria-label="Camera" disabled>
+            <svg viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/></svg>
+          </button>
+          <button class="btn" id="screen" title="Share your screen" aria-label="Share your screen" disabled>
+            <svg viewBox="0 0 24 24"><path d="M3 4h18a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-7v2h3v2H7v-2h3v-2H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm1 2v9h16V6H4z"/><path d="M12 8l-3 3h2v3h2v-3h2z"/></svg>
+          </button>
+          <button class="btn" id="fileBtn" title="Stream a video file" aria-label="Stream a video file" disabled>
+            <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 9v6l5-3z"/></svg>
+          </button>
+          <button class="btn swap" id="fs" title="Fullscreen (F)" aria-label="Fullscreen">
+            <svg class="a" viewBox="0 0 24 24"><path d="M5 5h5v2H7v3H5V5zm9 0h5v5h-2V7h-3V5zM5 14h2v3h3v2H5v-5zm12 0h2v5h-5v-2h3v-3z"/></svg>
+            <svg class="b" viewBox="0 0 24 24"><path d="M8 5h2v5H5V8h3V5zm6 0h2v3h3v2h-5V5zM5 14h5v5H8v-3H5v-2zm9 0h5v2h-3v3h-2v-5z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <input type="file" id="file" accept="video/*,audio/*" hidden>
+  <p id="log" role="status"></p>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
