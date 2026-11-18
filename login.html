@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · Together</title>
+<style>
+  :root {
+    --night: #1b1626; --surface: #271f38; --line: #3b3052; --text: #f1e9f5; --muted: #a99bb8;
+    --rose: #ff8fa3; --rose-ink: #3a1020; --bad: #ffb3c0;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: radial-gradient(1000px 500px at 50% -10%, #3a2a55 0%, var(--night) 60%);
+    color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh; display: grid; place-items: center;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  }
+  .card {
+    width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 36px 28px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  }
+  .heart { font-size: 2rem; line-height: 1; }
+  h1 { font: 600 2.2rem/1.1 Georgia, "Times New Roman", serif; margin: 10px 0 6px; }
+  .tag { color: var(--muted); margin: 0 0 26px; }
+  .primary {
+    display: block; width: 100%; background: var(--rose); color: var(--rose-ink); border: 1px solid var(--rose);
+    border-radius: 10px; padding: 13px 16px; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer;
+  }
+  .primary:hover { filter: brightness(1.06); }
+  :focus-visible { outline: 2px solid var(--rose); outline-offset: 3px; }
+  .error {
+    background: rgba(255, 143, 163, .12); border: 1px solid rgba(255, 143, 163, .45); color: var(--bad);
+    border-radius: 10px; padding: 10px 12px; margin: 0 0 16px; font-size: .92rem;
+  }
+  .small { color: var(--muted); font-size: .85rem; margin: 18px 0 0; }
+  .small a { color: var(--rose); }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="heart" aria-hidden="true">♥</div>
+  <h1>Together</h1>
+  <p class="tag">Watch, listen and talk, even when you're apart.</p>
+  {{ERROR}}
+  <a class="primary" href="/auth/start">Sign in with {{PROVIDER}}</a>
+  <p class="small">You'll be taken to {{PROVIDER}} to sign in. Together never sees your password.</p>
+  {{SIGNUP}}
+</main>
+</body>
+</html>

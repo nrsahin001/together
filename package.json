@@ -1,0 +1,17 @@
+{
+  "name": "couple-sync",
+  "version": "1.1.0",
+  "description": "Signaling server and web app for couple sync, with sign-in via Secure Auth (OpenID Connect)",
+  "main": "server.js",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ws": "^8.22.0"
+  }
+}
